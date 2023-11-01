@@ -2,11 +2,16 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+  "strings"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gocolly/colly/v2"
-	"net/http"
 )
+
+func format_response(text string) string {
+  return strings.TrimSpace(text)
+}
 
 func main() {
 	r := chi.NewRouter()
@@ -21,7 +26,7 @@ func main() {
 		}
 
 		c.OnHTML("article", func(h *colly.HTMLElement) {
-			w.Write([]byte(h.Text))
+			w.Write([]byte(format_response(h.Text)))
 			w.WriteHeader(http.StatusOK)
 			return
 		})
@@ -40,9 +45,13 @@ func main() {
 		c.Visit(url)
 	})
 
+  r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+    return
+  })
+
 	err := http.ListenAndServe(":8080", r)
 	if err != nil {
 		panic(err)
 	}
-
 }

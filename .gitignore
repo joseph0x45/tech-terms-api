@@ -21,3 +21,5 @@
 go.work
 # App binary
 app
+# Air tmp folder
+tmp
