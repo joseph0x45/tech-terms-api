@@ -2,56 +2,50 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
-  "strings"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	"strings"
+
 	"github.com/gocolly/colly/v2"
 )
 
-func format_response(text string) string {
-  return strings.TrimSpace(text)
-}
-
 func main() {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
 	c := colly.NewCollector()
-
-	r.Get("/search/{term}", func(w http.ResponseWriter, r *http.Request) {
-		term := chi.URLParam(r, "term")
-		if term == "" {
+	http.HandleFunc("/search/", func(w http.ResponseWriter, r *http.Request) {
+		request_path := r.URL.Path
+		url_params := strings.Split(request_path, "/")
+		if len(url_params) != 3 {
 			w.WriteHeader(http.StatusBadRequest)
+			println("Bad url")
 			return
 		}
+		term := url_params[2]
+		url := fmt.Sprintf("https://techterms.com/definition/%s", term)
+		var scraped_definition string
 
 		c.OnHTML("article", func(h *colly.HTMLElement) {
-			w.Write([]byte(format_response(h.Text)))
-			w.WriteHeader(http.StatusOK)
-			return
+      h.ForEach("p", func(i int, h *colly.HTMLElement) {
+        scraped_definition += h.Text+"\n"
+      })
 		})
 
-		c.OnError(func(r *colly.Response, err error) {
+		err := c.Visit(url)
+		if err != nil {
 			error_code := err.Error()
 			if error_code == "Not Found" {
 				w.WriteHeader(http.StatusNotFound)
+				println("not found")
 				return
 			}
-			println(err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
-		})
+			println(err.Error())
+			return
+		}
 
-		url := fmt.Sprintf("https://techterms.com/definition/%s", term)
-		c.Visit(url)
+		w.Write([]byte(scraped_definition))
+		return
 	})
 
-  r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-    w.WriteHeader(http.StatusOK)
-    return
-  })
-
-	err := http.ListenAndServe(":8080", r)
-	if err != nil {
-		panic(err)
-	}
+	println("Listening on port 8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
