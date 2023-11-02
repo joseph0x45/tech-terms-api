@@ -7,6 +7,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"log"
 	"net/http"
+  "crypto/tls"
 	"strings"
 )
 
@@ -22,6 +23,13 @@ func main() {
 		panic(err)
 	}
 	c := colly.NewCollector()
+
+	c.WithTransport(&http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	})
+
 	http.HandleFunc("/search/", func(w http.ResponseWriter, r *http.Request) {
 		request_path := r.URL.Path
 		url_params := strings.Split(request_path, "/")
@@ -48,7 +56,7 @@ func main() {
 				return
 			}
 			if error_code == "URL already visited" {
-        println("A request hit cache")
+				println("A request hit cache")
 				t := new(struct {
 					Term       string `db:"term"`
 					Definition string `db:"definition"`
